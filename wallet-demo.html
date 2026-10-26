@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>Two-factor seed wallet</title>
+<style>
+:root{
+  color-scheme: light dark;
+  --bg:#E8ECEF; --card:#FAFBFA; --ink:#14213D; --muted:#53607A; --line:#C5CED8;
+  --brass:#7D550A; --brass-bg:#F4E7BF; --brass-line:#CFA84B;
+  --danger:#A32D20; --danger-bg:#F8E1DC; --ok:#17684F;
+  --btn:#14213D; --btn-ink:#FFFFFF; --focus:#2F6FDE;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0C1424; --card:#152036; --ink:#E6EBF3; --muted:#98A5BC; --line:#2B3A57;
+    --brass:#E4B24C; --brass-bg:#3B3115; --brass-line:#8C6C25;
+    --danger:#FF9484; --danger-bg:#3C1B1A; --ok:#62D6B0;
+    --btn:#E6EBF3; --btn-ink:#0C1424; --focus:#7FA8FF;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans)}
+main{max-width:46rem;margin:0 auto;padding:28px 16px 64px}
+h1{font:600 2.1rem/1.15 var(--serif);margin:0 0 6px;letter-spacing:-.01em}
+h2{font:600 1.3rem/1.25 var(--serif);margin:0 0 6px}
+p{margin:0 0 12px}
+.lede{color:var(--muted);max-width:38rem;margin-bottom:18px}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+[hidden]{display:none!important}
+
+.notice{border-left:5px solid var(--danger);background:var(--danger-bg);padding:12px 14px;border-radius:0 4px 4px 0;margin-bottom:22px;font-size:.92rem}
+.notice strong{color:var(--danger)}
+
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-bottom:22px}
+.tabs button{appearance:none;border:0;background:none;color:var(--muted);font:600 1rem var(--sans);padding:12px 16px;min-height:44px;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brass-line)}
+
+fieldset{border:0;margin:0 0 18px;padding:0}
+legend,label.l{display:block;font-weight:600;margin-bottom:6px;padding:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--card)}
+.seg button{appearance:none;border:0;border-right:1px solid var(--line);background:none;color:var(--ink);font:500 1rem var(--sans);min-width:54px;min-height:44px;padding:0 16px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink)}
+
+input[type=text],input[type=number],textarea{width:100%;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:1rem var(--mono);padding:10px 12px;min-height:44px}
+textarea{resize:vertical;min-height:92px;line-height:1.5}
+.addon{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:start;margin-bottom:12px}
+.addon label{grid-column:1/-1;font-weight:600;font-size:.95rem}
+.addon .status{grid-column:1/-1;font-size:.85rem;color:var(--muted);min-height:1.2em}
+.addon .status.bad{color:var(--danger)}
+.addon input{border-color:var(--brass-line)}
+
+.btn{appearance:none;border:1px solid var(--btn);background:var(--btn);color:var(--btn-ink);font:600 1rem var(--sans);border-radius:6px;padding:0 20px;min-height:46px;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:none;color:var(--ink);border-color:var(--line)}
+.btn.small{min-height:44px;padding:0 14px;font-size:.92rem}
+.link{appearance:none;border:0;background:none;color:var(--ink);font:600 .9rem var(--sans);text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:44px;padding:0 6px}
+
+#sheetOut:not(:empty),#acctOut:not(:empty){margin-top:30px}
+.msg{margin:12px 0 0;font-size:.95rem}
+.msg.bad{color:var(--danger)}
+.msg.good{color:var(--ok)}
+
+/* the recovery sheet: the one distinctive element */
+.sheet{background:var(--card);border:1px solid var(--line);border-radius:3px;padding:20px 20px 18px;margin:14px 0 18px;box-shadow:0 1px 0 var(--line)}
+.words{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(8.4rem,1fr));gap:2px 14px}
+.words li{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px dotted var(--line)}
+.words .n{color:var(--muted);font:.78rem var(--mono);min-width:1.6em;text-align:right}
+.words .w{font:1.05rem var(--mono)}
+.perf{border:0;border-top:2px dashed var(--brass-line);margin:20px -4px 12px}
+.combos{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.combo{background:var(--brass-bg);border:1px solid var(--brass-line);border-radius:3px;padding:8px 14px 10px;min-width:9.5rem}
+.combo .t{display:block;font-size:.8rem;color:var(--brass);font-weight:600}
+.combo .v{font:600 1.25rem var(--mono);letter-spacing:.05em;word-break:break-all}
+
+.rows{background:var(--card);border:1px solid var(--line);border-radius:3px;margin:14px 0}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .rl{grid-column:1/-1;font-weight:600}
+.row .hint{grid-column:1/-1;font-size:.85rem;color:var(--muted)}
+.row .val{font:.93rem/1.45 var(--mono);word-break:break-all;align-self:center}
+.row .acts{display:flex;align-items:center}
+.row.secretrow .rl{color:var(--danger)}
+
+details{border-top:1px solid var(--line);padding:12px 0}
+details:last-of-type{border-bottom:1px solid var(--line)}
+summary{cursor:pointer;font-weight:600;min-height:32px}
+ol.steps{padding-left:1.3rem;margin:10px 0}
+ol.steps li{margin-bottom:6px}
+ul.tight{padding-left:1.2rem;margin:10px 0}
+ul.tight li{margin-bottom:5px}
+.tests{list-style:none;padding:0;margin:12px 0 0;font-size:.9rem}
+.tests li{padding:3px 0}
+.tests .ok{color:var(--ok);font-weight:700}
+.tests .no{color:var(--danger);font-weight:700}
+.check{display:flex;gap:10px;align-items:flex-start;margin:14px 0}
+.check input{width:22px;height:22px;margin-top:2px;flex:none}
+@media (max-width:480px){
+  h1{font-size:1.7rem}
+  .sheet{padding:16px 14px}
+  .row{padding:12px}
+  .words{grid-template-columns:repeat(2,1fr)}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Two-factor seed wallet</h1>
+  <p class="lede">Standard recovery words plus up to three add-on phrases. Without every add-on, the words alone open a different, empty wallet.</p>
+
+  <div class="notice" role="note">
+    <strong>Demo only.</strong> This page uses hand-written, unaudited code. Do not put real funds in a wallet made here.
+    Everything runs in your browser, and the page blocks all network requests.
+  </div>
+  <div class="notice" id="fatal" hidden><strong>This browser can't run the wallet.</strong> Open the file from your computer in a current Chrome, Edge, Firefox or Safari.</div>
+
+  <div class="tabs" role="tablist" aria-label="Wallet actions">
+    <button role="tab" id="tab-create" data-tab="create" aria-selected="true" aria-controls="panel-create">Create wallet</button>
+    <button role="tab" id="tab-open" data-tab="open" aria-selected="false" aria-controls="panel-open" tabindex="-1">Open wallet</button>
+  </div>
+
+  <section id="panel-create" role="tabpanel" aria-labelledby="tab-create">
+    <fieldset>
+      <legend id="lgWords">Recovery words</legend>
+      <div class="seg" id="segWords" role="group" aria-labelledby="lgWords"></div>
+    </fieldset>
+    <fieldset>
+      <legend id="lgAddons">Add-on phrases</legend>
+      <div class="seg" id="segAddons" role="group" aria-labelledby="lgAddons"></div>
+      <p class="muted small" style="margin-top:8px">Each add-on is 3 to 8 characters: letters, digits and symbols. Random is safest.</p>
+    </fieldset>
+    <div id="addonRows"></div>
+    <p class="muted small" id="strength"></p>
+    <button class="btn" id="genBtn" type="button">Create wallet</button>
+    <p class="msg" id="createMsg" role="alert"></p>
+    <div id="sheetOut"></div>
+  </section>
+
+  <section id="panel-open" role="tabpanel" aria-labelledby="tab-open" hidden>
+    <label class="l" for="openWords">Recovery words</label>
+    <textarea id="openWords" spellcheck="false" autocomplete="off" autocapitalize="none" placeholder="Type or paste your 12 or 24 words, separated by spaces"></textarea>
+    <p class="muted small" style="margin:14px 0 8px">Add-on phrases. Fill them in the same order you wrote them down, and leave unused fields empty.</p>
+    <div class="addon"><label for="open1">Add-on 1</label><input type="text" id="open1" maxlength="8" spellcheck="false" autocomplete="off" autocapitalize="none"></div>
+    <div class="addon"><label for="open2">Add-on 2</label><input type="text" id="open2" maxlength="8" spellcheck="false" autocomplete="off" autocapitalize="none"></div>
+    <div class="addon"><label for="open3">Add-on 3</label><input type="text" id="open3" maxlength="8" spellcheck="false" autocomplete="off" autocapitalize="none"></div>
+    <div style="max-width:11rem;margin-bottom:16px">
+      <label class="l" for="acctIdx">Account number</label>
+      <input type="number" id="acctIdx" min="0" max="19" value="0" inputmode="numeric">
+    </div>
+    <button class="btn" id="openBtn" type="button">Open wallet</button>
+    <p class="msg" id="openMsg" role="alert"></p>
+    <div id="acctOut"></div>
+  </section>
+
+  <div style="margin-top:34px">
+    <details>
+      <summary>How the keys are made</summary>
+      <ol class="steps">
+        <li>The wallet picks 12 or 24 random words from the standard BIP-39 list. The last word carries a checksum.</li>
+        <li>Your add-on phrases are joined in order (add-on 1, then 2, then 3, no separator) into one passphrase. Empty fields are skipped.</li>
+        <li>PBKDF2-HMAC-SHA512 with 2048 rounds turns the words and passphrase into a 512-bit seed.</li>
+        <li>BIP-32 turns the seed into a master key. The path m/44'/60'/0'/0/n selects account n.</li>
+        <li>That account's private key gives the public key (secp256k1), and Keccak-256 of the public key gives the Ethereum address.</li>
+      </ol>
+      <p class="small muted">Because the add-ons become a standard BIP-39 passphrase, the same words and add-ons give the same Ethereum account in other BIP-39 tools that accept a passphrase. This page's output matches published test vectors (see the self-test).</p>
+    </details>
+    <details>
+      <summary>Limits of this demo</summary>
+      <ul class="tight">
+        <li>The elliptic-curve and Keccak code is hand-written and not audited. A real wallet should use audited libraries.</li>
+        <li>A wrong add-on does not produce an error. It opens a different, empty wallet. Compare the check value shown when you created the wallet.</li>
+        <li>PBKDF2 with 2048 rounds is cheap to attack, so short add-ons chosen by a person can be guessed. A production vault mode should stretch the add-ons with Argon2id.</li>
+        <li>Secrets stay in this page's memory until you lock the wallet or close the tab.</li>
+        <li>Only Ethereum is derived here.</li>
+      </ul>
+    </details>
+    <details id="testBox">
+      <summary>Self-test</summary>
+      <p class="small muted" style="margin-top:10px">Checks the page's code against public BIP-39, Keccak and Ethereum test vectors.</p>
+      <button class="btn ghost small" id="testBtn" type="button">Run self-test</button>
+      <ul class="tests" id="testOut"></ul>
+    </details>
+  </div>
+</main>
+
+<script>
+/* Wallet core (DEMO). BIP-39 + add-on passphrase -> BIP-32 -> BIP-44 (Ethereum).
+ * PBKDF2 / HMAC / SHA-256 come from the browser's WebCrypto. secp256k1 and Keccak-256
+ * are small hand-written implementations: fine for a demo, NOT audited, NOT constant-time.
+ * Production should use @scure/bip39, @scure/bip32 and @noble/curves instead.            */
+(function (root) {
+  'use strict';
+
+  const subtle = root.crypto && root.crypto.subtle;
+  const te = new TextEncoder();
+
+  /* ---------- byte helpers ---------- */
+  const toHex = (u8) => Array.from(u8, (b) => b.toString(16).padStart(2, '0')).join('');
+  const fromHex = (h) => {
+    h = h.replace(/^0x/, '');
+    const u = new Uint8Array(h.length / 2);
+    for (let i = 0; i < u.length; i++) u[i] = parseInt(h.substr(i * 2, 2), 16);
+    return u;
+  };
+  const concat = (...arrs) => {
+    let n = 0;
+    for (const a of arrs) n += a.length;
+    const out = new Uint8Array(n);
+    let o = 0;
+    for (const a of arrs) { out.set(a, o); o += a.length; }
+    return out;
+  };
+  const bytesToBig = (u) => BigInt('0x' + (toHex(u) || '0'));
+  const bigToBytes = (n, len = 32) => fromHex(n.toString(16).padStart(len * 2, '0'));
+  const u32 = (n) => new Uint8Array([(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255]);
+
+  /* ---------- WebCrypto wrappers ---------- */
+  async function sha256(data) {
+    return new Uint8Array(await subtle.digest('SHA-256', data));
+  }
+  async function hmacSha512(keyBytes, data) {
+    const k = await subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-512' }, false, ['sign']);
+    return new Uint8Array(await subtle.sign('HMAC', k, data));
+  }
+  async function pbkdf2Sha512(password, salt, iterations) {
+    const k = await subtle.importKey('raw', password, 'PBKDF2', false, ['deriveBits']);
+    return new Uint8Array(await subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-512', salt, iterations }, k, 512));
+  }
+
+  /* ---------- BIP-39 ---------- */
+  let WL = [];
+  let WLMAP = new Map();
+  function setWordlist(words) {
+    if (words.length !== 2048) throw new Error('wordlist must have 2048 words');
+    WL = words.slice();
+    WLMAP = new Map(WL.map((w, i) => [w, i]));
+  }
+
+  const normMnemonic = (m) => m.trim().toLowerCase().replace(/\s+/g, ' ');
+
+  async function entropyToMnemonic(entropy) {
+    const bitsCS = (entropy.length * 8) / 32;
+    const hash = await sha256(entropy);
+    let bits = '';
+    for (const b of entropy) bits += b.toString(2).padStart(8, '0');
+    bits += hash[0].toString(2).padStart(8, '0').slice(0, bitsCS);
+    const words = [];
+    for (let i = 0; i < bits.length; i += 11) words.push(WL[parseInt(bits.slice(i, i + 11), 2)]);
+    return words.join(' ');
+  }
+
+  async function generateMnemonic(wordCount) {
+    if (wordCount !== 12 && wordCount !== 24) throw new Error('12 or 24 words only');
+    const entropy = root.crypto.getRandomValues(new Uint8Array(wordCount === 24 ? 32 : 16));
+    return entropyToMnemonic(entropy);
+  }
+
+  /* returns { ok, error, unknown[] } */
+  async function checkMnemonic(m) {
+    const words = normMnemonic(m).split(' ').filter(Boolean);
+    if (![12, 15, 18, 21, 24].includes(words.length)) {
+      return { ok: false, error: `Expected 12, 15, 18, 21 or 24 words, got ${words.length}.`, unknown: [] };
+    }
+    const unknown = words.filter((w) => !WLMAP.has(w));
+    if (unknown.length) {
+      return { ok: false, error: `Not in the BIP-39 list: ${unknown.join(', ')}`, unknown };
+    }
+    let bits = '';
+    for (const w of words) bits += WLMAP.get(w).toString(2).padStart(11, '0');
+    const csLen = words.length / 3;
+    const entBits = bits.length - csLen;
+    const entropy = new Uint8Array(entBits / 8);
+    for (let i = 0; i < entropy.length; i++) entropy[i] = parseInt(bits.slice(i * 8, i * 8 + 8), 2);
+    const hash = await sha256(entropy);
+    const expected = hash[0].toString(2).padStart(8, '0').slice(0, csLen);
+    if (expected !== bits.slice(entBits)) {
+      return { ok: false, error: 'Checksum failed: a word is wrong or the order is wrong.', unknown: [] };
+    }
+    return { ok: true, words };
+  }
+
+  /* Add-on phrases: 3-8 printable ASCII chars (a-z A-Z 0-9 and the 32 symbols), no spaces. */
+  const ADDON_RE = /^[\x21-\x7E]{3,8}$/;
+  const ADDON_CHARS = (() => { let s = ''; for (let c = 0x21; c <= 0x7e; c++) s += String.fromCharCode(c); return s; })();
+  const validAddon = (a) => ADDON_RE.test(a);
+  function randomAddon(len = 8) {
+    const max = 256 - (256 % ADDON_CHARS.length); // rejection sampling, no modulo bias
+    let out = '';
+    while (out.length < len) {
+      const b = root.crypto.getRandomValues(new Uint8Array(1))[0];
+      if (b < max) out += ADDON_CHARS[b % ADDON_CHARS.length];
+    }
+    return out;
+  }
+  /* Documented rule: passphrase = P1 + P2 + P3, fixed order, no separator, blank fields skipped. */
+  const joinAddons = (addons) => addons.filter((a) => a && a.length).join('');
+
+  async function mnemonicToSeed(mnemonic, passphrase = '') {
+    const pw = te.encode(normMnemonic(mnemonic).normalize('NFKD'));
+    const salt = te.encode('mnemonic' + passphrase.normalize('NFKD'));
+    return pbkdf2Sha512(pw, salt, 2048);
+  }
+
+  /* ---------- secp256k1 (Jacobian coordinates) ---------- */
+  const P = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn;
+  const N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
+  const GX = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798n;
+  const GY = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8n;
+  const mod = (a) => { const r = a % P; return r >= 0n ? r : r + P; };
+  function inv(a) { // extended Euclid
+    let [lm, hm, low, high] = [1n, 0n, mod(a), P];
+    while (low > 1n) {
+      const r = high / low;
+      [lm, hm, low, high] = [hm - lm * r, lm, high - low * r, low];
+    }
+    return mod(lm);
+  }
+  const INF = [0n, 1n, 0n];
+  function jDouble(p) {
+    const [X, Y, Z] = p;
+    if (Z === 0n || Y === 0n) return INF;
+    const YY = mod(Y * Y), S = mod(4n * X * YY), M = mod(3n * X * X);
+    const X3 = mod(M * M - 2n * S);
+    return [X3, mod(M * (S - X3) - 8n * YY * YY), mod(2n * Y * Z)];
+  }
+  function jAdd(p, q) {
+    if (p[2] === 0n) return q;
+    if (q[2] === 0n) return p;
+    const [X1, Y1, Z1] = p, [X2, Y2, Z2] = q;
+    const Z1Z1 = mod(Z1 * Z1), Z2Z2 = mod(Z2 * Z2);
+    const U1 = mod(X1 * Z2Z2), U2 = mod(X2 * Z1Z1);
+    const S1 = mod(Y1 * Z2 * Z2Z2), S2 = mod(Y2 * Z1 * Z1Z1);
+    if (U1 === U2) return S1 === S2 ? jDouble(p) : INF;
+    const H = mod(U2 - U1), R = mod(S2 - S1);
+    const HH = mod(H * H), HHH = mod(H * HH), V = mod(U1 * HH);
+    const X3 = mod(R * R - HHH - 2n * V);
+    return [X3, mod(R * (V - X3) - S1 * HHH), mod(Z1 * Z2 * H)];
+  }
+  function mulG(k) { // not constant-time: demo only
+    let acc = INF, add = [GX, GY, 1n];
+    while (k > 0n) {
+      if (k & 1n) acc = jAdd(acc, add);
+      add = jDouble(add);
+      k >>= 1n;
+    }
+    const zi = inv(acc[2]), zi2 = mod(zi * zi);
+    return [mod(acc[0] * zi2), mod(acc[1] * zi2 * zi)];
+  }
+  function publicKey(priv32, compressed) {
+    const k = bytesToBig(priv32);
+    if (k <= 0n || k >= N) throw new Error('invalid private key');
+    const [x, y] = mulG(k);
+    return compressed
+      ? concat(new Uint8Array([y & 1n ? 3 : 2]), bigToBytes(x))
+      : concat(new Uint8Array([4]), bigToBytes(x), bigToBytes(y));
+  }
+
+  /* ---------- BIP-32 ---------- */
+  async function masterFromSeed(seed) {
+    const I = await hmacSha512(te.encode('Bitcoin seed'), seed);
+    const k = bytesToBig(I.slice(0, 32));
+    if (k <= 0n || k >= N) throw new Error('invalid master key');
+    return { key: I.slice(0, 32), chain: I.slice(32) };
+  }
+  async function childKey(parent, index) {
+    const hardened = index >= 0x80000000;
+    const data = hardened
+      ? concat(new Uint8Array([0]), parent.key, u32(index))
+      : concat(publicKey(parent.key, true), u32(index));
+    const I = await hmacSha512(parent.chain, data);
+    const il = bytesToBig(I.slice(0, 32));
+    const ki = (il + bytesToBig(parent.key)) % N;
+    if (il >= N || ki === 0n) throw new Error('invalid child, try next index');
+    return { key: bigToBytes(ki), chain: I.slice(32) };
+  }
+  async function derivePath(seed, path) {
+    const parts = path.split('/');
+    if (parts[0] !== 'm') throw new Error('path must start with m');
+    let node = await masterFromSeed(seed);
+    for (const p of parts.slice(1)) {
+      const hardened = /['h]$/.test(p);
+      const n = parseInt(p, 10);
+      node = await childKey(node, hardened ? n + 0x80000000 : n);
+    }
+    return node;
+  }
+
+  /* ---------- Keccak-256 (original Keccak padding, as used by Ethereum) ---------- */
+  const M64 = (1n << 64n) - 1n;
+  const RC = [
+    0x0000000000000001n, 0x0000000000008082n, 0x800000000000808an, 0x8000000080008000n,
+    0x000000000000808bn, 0x0000000080000001n, 0x8000000080008081n, 0x8000000000008009n,
+    0x000000000000008an, 0x0000000000000088n, 0x0000000080008009n, 0x000000008000000an,
+    0x000000008000808bn, 0x800000000000008bn, 0x8000000000008089n, 0x8000000000008003n,
+    0x8000000000008002n, 0x8000000000000080n, 0x000000000000800an, 0x800000008000000an,
+    0x8000000080008081n, 0x8000000000008080n, 0x0000000080000001n, 0x8000000080008008n,
+  ];
+  const ROTC = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 2, 14, 27, 41, 56, 8, 25, 43, 62, 18, 39, 61, 20, 44];
+  const PILN = [10, 7, 11, 17, 18, 3, 5, 16, 8, 21, 24, 4, 15, 23, 19, 13, 12, 2, 20, 14, 22, 9, 6, 1];
+  const rotl = (x, n) => ((x << BigInt(n)) | (x >> BigInt(64 - n))) & M64;
+  function keccakF(st) {
+    const bc = new Array(5);
+    for (let round = 0; round < 24; round++) {
+      for (let i = 0; i < 5; i++) bc[i] = st[i] ^ st[i + 5] ^ st[i + 10] ^ st[i + 15] ^ st[i + 20];
+      for (let i = 0; i < 5; i++) {
+        const t = bc[(i + 4) % 5] ^ rotl(bc[(i + 1) % 5], 1);
+        for (let j = 0; j < 25; j += 5) st[j + i] ^= t;
+      }
+      let t = st[1];
+      for (let i = 0; i < 24; i++) {
+        const j = PILN[i], b = st[j];
+        st[j] = rotl(t, ROTC[i]);
+        t = b;
+      }
+      for (let j = 0; j < 25; j += 5) {
+        for (let i = 0; i < 5; i++) bc[i] = st[j + i];
+        for (let i = 0; i < 5; i++) st[j + i] ^= (~bc[(i + 1) % 5] & M64) & bc[(i + 2) % 5];
+      }
+      st[0] ^= RC[round];
+    }
+  }
+  function keccak256(msg) {
+    const rate = 136;
+    const padLen = Math.ceil((msg.length + 1) / rate) * rate;
+    const buf = new Uint8Array(padLen);
+    buf.set(msg);
+    buf[msg.length] ^= 0x01;
+    buf[padLen - 1] ^= 0x80;
+    const st = new Array(25).fill(0n);
+    for (let off = 0; off < padLen; off += rate) {
+      for (let i = 0; i < rate / 8; i++) {
+        let lane = 0n;
+        for (let b = 7; b >= 0; b--) lane = (lane << 8n) | BigInt(buf[off + i * 8 + b]);
+        st[i] ^= lane;
+      }
+      keccakF(st);
+    }
+    const out = new Uint8Array(32);
+    for (let i = 0; i < 4; i++) {
+      let lane = st[i];
+      for (let b = 0; b < 8; b++) { out[i * 8 + b] = Number(lane & 0xffn); lane >>= 8n; }
+    }
+    return out;
+  }
+
+  /* ---------- Ethereum address (EIP-55) ---------- */
+  function ethAddress(uncompressedPub) {
+    const hex = toHex(keccak256(uncompressedPub.slice(1)).slice(12));
+    const h = toHex(keccak256(te.encode(hex)));
+    let out = '0x';
+    for (let i = 0; i < 40; i++) out += parseInt(h[i], 16) >= 8 ? hex[i].toUpperCase() : hex[i];
+    return out;
+  }
+  const fingerprint = (addr) => addr.slice(0, 6) + '…' + addr.slice(-4);
+
+  /* ---------- high level ---------- */
+  async function deriveWallet(mnemonic, addons = [], account = 0) {
+    const passphrase = joinAddons(addons);
+    const seed = await mnemonicToSeed(mnemonic, passphrase);
+    const path = `m/44'/60'/0'/0/${account}`;
+    const node = await derivePath(seed, path);
+    const pub = publicKey(node.key, false);
+    const address = ethAddress(pub);
+    return {
+      path,
+      passphraseLength: passphrase.length,
+      seedHex: toHex(seed),
+      privateKey: '0x' + toHex(node.key),
+      publicKey: '0x' + toHex(pub),
+      publicKeyCompressed: '0x' + toHex(publicKey(node.key, true)),
+      address,
+      fingerprint: fingerprint(address),
+    };
+  }
+
+  /* ---------- built-in self test (known public vectors) ---------- */
+  const OFFICIAL_WORDLIST_SHA256 = '2f5eed53a4727b4bf8880d8f3f199efc90e58503646d9ff8eff3a2ed3b24dbda';
+  async function selfTest() {
+    const res = [];
+    const t = (name, ok, detail) => res.push({ name, ok: !!ok, detail: detail || '' });
+    const abandon = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
+    t('Wordlist matches official BIP-39 English file (SHA-256)',
+      toHex(await sha256(te.encode(WL.join('\n') + '\n'))) === OFFICIAL_WORDLIST_SHA256);
+    t('Keccak-256("")', toHex(keccak256(new Uint8Array(0))) === 'c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470');
+    t('Keccak-256("abc")', toHex(keccak256(te.encode('abc'))) === '4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45');
+    t('Private key 1 gives the known address',
+      ethAddress(publicKey(bigToBytes(1n), false)) === '0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf');
+    t('Entropy 7f..7f gives "legal winner thank ... yellow"',
+      (await entropyToMnemonic(new Uint8Array(16).fill(0x7f))) === 'legal winner thank year wave sausage worth useful legal winner thank yellow');
+    t('Entropy ff..ff gives "zoo ... wrong"',
+      (await entropyToMnemonic(new Uint8Array(16).fill(0xff))) === 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong');
+    t('Valid mnemonic accepted', (await checkMnemonic(abandon)).ok);
+    t('Bad checksum rejected', !(await checkMnemonic(abandon.replace('about', 'above'))).ok);
+    const s0 = toHex(await mnemonicToSeed(abandon, ''));
+    t('BIP-39 seed, empty passphrase', s0.startsWith('5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc1'));
+    const s1 = toHex(await mnemonicToSeed(abandon, 'TREZOR'));
+    t('BIP-39 seed, passphrase "TREZOR"', s1.startsWith('c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e5349553'));
+    const sj = toHex(await mnemonicToSeed(abandon, joinAddons(['TRE', 'ZO', 'R'])));
+    t('Add-ons "TRE"+"ZO"+"R" equal passphrase "TREZOR"', sj === s1);
+    const w = await deriveWallet(abandon, [], 0);
+    t("m/44'/60'/0'/0/0 address (standard vector)", w.address === '0x9858EfFD232B4033E47d90003D41EC34EcaEda94', w.address);
+    t("m/44'/60'/0'/0/0 private key (standard vector)",
+      w.privateKey === '0x1ab42cc412b618bdea3a599e3c9bae199ebf030895b039e9db1e30dafb12b727');
+    const w2 = await deriveWallet(abandon, ['x9#'], 0);
+    t('Adding an add-on changes the wallet', w2.address !== w.address);
+    return res;
+  }
+
+  const api = {
+    setWordlist, generateMnemonic, entropyToMnemonic, checkMnemonic, mnemonicToSeed,
+    validAddon, randomAddon, joinAddons, deriveWallet, selfTest,
+    keccak256, publicKey, ethAddress, derivePath, toHex, fromHex, ADDON_CHARS,
+    getWordlist: () => WL.slice(),
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.WalletCore = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+(function () {
+  'use strict';
+  const C = window.WalletCore;
+  const $ = (s, r) => (r || document).querySelector(s);
+  function h(tag, props) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else e.setAttribute(k, v);
+    }
+    for (let i = 2; i < arguments.length; i++) if (arguments[i] != null) e.append(arguments[i]);
+    return e;
+  }
+  if (!(window.crypto && crypto.subtle)) { $('#fatal').hidden = false; return; }
+  C.setWordlist("abandon ability able about above absent absorb abstract absurd abuse access accident account accuse achieve acid acoustic acquire across act action actor actress actual adapt add addict address adjust admit adult advance advice aerobic affair afford afraid again age agent agree ahead aim air airport aisle alarm album alcohol alert alien all alley allow almost alone alpha already also alter always amateur amazing among amount amused analyst anchor ancient anger angle angry animal ankle announce annual another answer antenna antique anxiety any apart apology appear apple approve april arch arctic area arena argue arm armed armor army around arrange arrest arrive arrow art artefact artist artwork ask aspect assault asset assist assume asthma athlete atom attack attend attitude attract auction audit august aunt author auto autumn average avocado avoid awake aware away awesome awful awkward axis baby bachelor bacon badge bag balance balcony ball bamboo banana banner bar barely bargain barrel base basic basket battle beach bean beauty because become beef before begin behave behind believe below belt bench benefit best betray better between beyond bicycle bid bike bind biology bird birth bitter black blade blame blanket blast bleak bless blind blood blossom blouse blue blur blush board boat body boil bomb bone bonus book boost border boring borrow boss bottom bounce box boy bracket brain brand brass brave bread breeze brick bridge brief bright bring brisk broccoli broken bronze broom brother brown brush bubble buddy budget buffalo build bulb bulk bullet bundle bunker burden burger burst bus business busy butter buyer buzz cabbage cabin cable cactus cage cake call calm camera camp can canal cancel candy cannon canoe canvas canyon capable capital captain car carbon card cargo carpet carry cart case cash casino castle casual cat catalog catch category cattle caught cause caution cave ceiling celery cement census century cereal certain chair chalk champion change chaos chapter charge chase chat cheap check cheese chef cherry chest chicken chief child chimney choice choose chronic chuckle chunk churn cigar cinnamon circle citizen city civil claim clap clarify claw clay clean clerk clever click client cliff climb clinic clip clock clog close cloth cloud clown club clump cluster clutch coach coast coconut code coffee coil coin collect color column combine come comfort comic common company concert conduct confirm congress connect consider control convince cook cool copper copy coral core corn correct cost cotton couch country couple course cousin cover coyote crack cradle craft cram crane crash crater crawl crazy cream credit creek crew cricket crime crisp critic crop cross crouch crowd crucial cruel cruise crumble crunch crush cry crystal cube culture cup cupboard curious current curtain curve cushion custom cute cycle dad damage damp dance danger daring dash daughter dawn day deal debate debris decade december decide decline decorate decrease deer defense define defy degree delay deliver demand demise denial dentist deny depart depend deposit depth deputy derive describe desert design desk despair destroy detail detect develop device devote diagram dial diamond diary dice diesel diet differ digital dignity dilemma dinner dinosaur direct dirt disagree discover disease dish dismiss disorder display distance divert divide divorce dizzy doctor document dog doll dolphin domain donate donkey donor door dose double dove draft dragon drama drastic draw dream dress drift drill drink drip drive drop drum dry duck dumb dune during dust dutch duty dwarf dynamic eager eagle early earn earth easily east easy echo ecology economy edge edit educate effort egg eight either elbow elder electric elegant element elephant elevator elite else embark embody embrace emerge emotion employ empower empty enable enact end endless endorse enemy energy enforce engage engine enhance enjoy enlist enough enrich enroll ensure enter entire entry envelope episode equal equip era erase erode erosion error erupt escape essay essence estate eternal ethics evidence evil evoke evolve exact example excess exchange excite exclude excuse execute exercise exhaust exhibit exile exist exit exotic expand expect expire explain expose express extend extra eye eyebrow fabric face faculty fade faint faith fall false fame family famous fan fancy fantasy farm fashion fat fatal father fatigue fault favorite feature february federal fee feed feel female fence festival fetch fever few fiber fiction field figure file film filter final find fine finger finish fire firm first fiscal fish fit fitness fix flag flame flash flat flavor flee flight flip float flock floor flower fluid flush fly foam focus fog foil fold follow food foot force forest forget fork fortune forum forward fossil foster found fox fragile frame frequent fresh friend fringe frog front frost frown frozen fruit fuel fun funny furnace fury future gadget gain galaxy gallery game gap garage garbage garden garlic garment gas gasp gate gather gauge gaze general genius genre gentle genuine gesture ghost giant gift giggle ginger giraffe girl give glad glance glare glass glide glimpse globe gloom glory glove glow glue goat goddess gold good goose gorilla gospel gossip govern gown grab grace grain grant grape grass gravity great green grid grief grit grocery group grow grunt guard guess guide guilt guitar gun gym habit hair half hammer hamster hand happy harbor hard harsh harvest hat have hawk hazard head health heart heavy hedgehog height hello helmet help hen hero hidden high hill hint hip hire history hobby hockey hold hole holiday hollow home honey hood hope horn horror horse hospital host hotel hour hover hub huge human humble humor hundred hungry hunt hurdle hurry hurt husband hybrid ice icon idea identify idle ignore ill illegal illness image imitate immense immune impact impose improve impulse inch include income increase index indicate indoor industry infant inflict inform inhale inherit initial inject injury inmate inner innocent input inquiry insane insect inside inspire install intact interest into invest invite involve iron island isolate issue item ivory jacket jaguar jar jazz jealous jeans jelly jewel job join joke journey joy judge juice jump jungle junior junk just kangaroo keen keep ketchup key kick kid kidney kind kingdom kiss kit kitchen kite kitten kiwi knee knife knock know lab label labor ladder lady lake lamp language laptop large later latin laugh laundry lava law lawn lawsuit layer lazy leader leaf learn leave lecture left leg legal legend leisure lemon lend length lens leopard lesson letter level liar liberty library license life lift light like limb limit link lion liquid list little live lizard load loan lobster local lock logic lonely long loop lottery loud lounge love loyal lucky luggage lumber lunar lunch luxury lyrics machine mad magic magnet maid mail main major make mammal man manage mandate mango mansion manual maple marble march margin marine market marriage mask mass master match material math matrix matter maximum maze meadow mean measure meat mechanic medal media melody melt member memory mention menu mercy merge merit merry mesh message metal method middle midnight milk million mimic mind minimum minor minute miracle mirror misery miss mistake mix mixed mixture mobile model modify mom moment monitor monkey monster month moon moral more morning mosquito mother motion motor mountain mouse move movie much muffin mule multiply muscle museum mushroom music must mutual myself mystery myth naive name napkin narrow nasty nation nature near neck need negative neglect neither nephew nerve nest net network neutral never news next nice night noble noise nominee noodle normal north nose notable note nothing notice novel now nuclear number nurse nut oak obey object oblige obscure observe obtain obvious occur ocean october odor off offer office often oil okay old olive olympic omit once one onion online only open opera opinion oppose option orange orbit orchard order ordinary organ orient original orphan ostrich other outdoor outer output outside oval oven over own owner oxygen oyster ozone pact paddle page pair palace palm panda panel panic panther paper parade parent park parrot party pass patch path patient patrol pattern pause pave payment peace peanut pear peasant pelican pen penalty pencil people pepper perfect permit person pet phone photo phrase physical piano picnic picture piece pig pigeon pill pilot pink pioneer pipe pistol pitch pizza place planet plastic plate play please pledge pluck plug plunge poem poet point polar pole police pond pony pool popular portion position possible post potato pottery poverty powder power practice praise predict prefer prepare present pretty prevent price pride primary print priority prison private prize problem process produce profit program project promote proof property prosper protect proud provide public pudding pull pulp pulse pumpkin punch pupil puppy purchase purity purpose purse push put puzzle pyramid quality quantum quarter question quick quit quiz quote rabbit raccoon race rack radar radio rail rain raise rally ramp ranch random range rapid rare rate rather raven raw razor ready real reason rebel rebuild recall receive recipe record recycle reduce reflect reform refuse region regret regular reject relax release relief rely remain remember remind remove render renew rent reopen repair repeat replace report require rescue resemble resist resource response result retire retreat return reunion reveal review reward rhythm rib ribbon rice rich ride ridge rifle right rigid ring riot ripple risk ritual rival river road roast robot robust rocket romance roof rookie room rose rotate rough round route royal rubber rude rug rule run runway rural sad saddle sadness safe sail salad salmon salon salt salute same sample sand satisfy satoshi sauce sausage save say scale scan scare scatter scene scheme school science scissors scorpion scout scrap screen script scrub sea search season seat second secret section security seed seek segment select sell seminar senior sense sentence series service session settle setup seven shadow shaft shallow share shed shell sheriff shield shift shine ship shiver shock shoe shoot shop short shoulder shove shrimp shrug shuffle shy sibling sick side siege sight sign silent silk silly silver similar simple since sing siren sister situate six size skate sketch ski skill skin skirt skull slab slam sleep slender slice slide slight slim slogan slot slow slush small smart smile smoke smooth snack snake snap sniff snow soap soccer social sock soda soft solar soldier solid solution solve someone song soon sorry sort soul sound soup source south space spare spatial spawn speak special speed spell spend sphere spice spider spike spin spirit split spoil sponsor spoon sport spot spray spread spring spy square squeeze squirrel stable stadium staff stage stairs stamp stand start state stay steak steel stem step stereo stick still sting stock stomach stone stool story stove strategy street strike strong struggle student stuff stumble style subject submit subway success such sudden suffer sugar suggest suit summer sun sunny sunset super supply supreme sure surface surge surprise surround survey suspect sustain swallow swamp swap swarm swear sweet swift swim swing switch sword symbol symptom syrup system table tackle tag tail talent talk tank tape target task taste tattoo taxi teach team tell ten tenant tennis tent term test text thank that theme then theory there they thing this thought three thrive throw thumb thunder ticket tide tiger tilt timber time tiny tip tired tissue title toast tobacco today toddler toe together toilet token tomato tomorrow tone tongue tonight tool tooth top topic topple torch tornado tortoise toss total tourist toward tower town toy track trade traffic tragic train transfer trap trash travel tray treat tree trend trial tribe trick trigger trim trip trophy trouble truck true truly trumpet trust truth try tube tuition tumble tuna tunnel turkey turn turtle twelve twenty twice twin twist two type typical ugly umbrella unable unaware uncle uncover under undo unfair unfold unhappy uniform unique unit universe unknown unlock until unusual unveil update upgrade uphold upon upper upset urban urge usage use used useful useless usual utility vacant vacuum vague valid valley valve van vanish vapor various vast vault vehicle velvet vendor venture venue verb verify version very vessel veteran viable vibrant vicious victory video view village vintage violin virtual virus visa visit visual vital vivid vocal voice void volcano volume vote voyage wage wagon wait walk wall walnut want warfare warm warrior wash wasp waste water wave way wealth weapon wear weasel weather web wedding weekend weird welcome west wet whale what wheat wheel when where whip whisper wide width wife wild will win window wine wing wink winner winter wire wisdom wise wish witness wolf woman wonder wood wool word work world worry worth wrap wreck wrestle wrist write wrong yard year yellow you young youth zebra zero zone zoo".split(' '));
+
+  async function copyText(text, btn) {
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const t = document.createElement('textarea');
+      t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.append(t); t.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      t.remove();
+    }
+    const old = btn.textContent; btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = old; }, 1400);
+  }
+  function say(el, text, kind) { el.textContent = text || ''; el.className = 'msg' + (kind ? ' ' + kind : ''); }
+
+  /* ---------- tabs ---------- */
+  function showTab(name) {
+    document.querySelectorAll('[role=tab]').forEach((t) => {
+      const on = t.dataset.tab === name;
+      t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1;
+    });
+    $('#panel-create').hidden = name !== 'create';
+    $('#panel-open').hidden = name !== 'open';
+  }
+  document.querySelectorAll('[role=tab]').forEach((t) => t.addEventListener('click', () => showTab(t.dataset.tab)));
+
+  /* ---------- create: settings ---------- */
+  let wordCount = 12, addonCount = 0;
+  const addonVals = ['', '', ''];
+  let created = null;
+
+  function seg(container, values, current, onPick) {
+    container.textContent = '';
+    for (const v of values) {
+      const b = h('button', { type: 'button', 'aria-pressed': String(v === current), text: String(v) });
+      b.addEventListener('click', () => { onPick(v); seg(container, values, v, onPick); });
+      container.append(b);
+    }
+  }
+  function bitsOf(v) {
+    let pool = 0;
+    if (/[a-z]/.test(v)) pool += 26;
+    if (/[A-Z]/.test(v)) pool += 26;
+    if (/[0-9]/.test(v)) pool += 10;
+    if (/[^A-Za-z0-9]/.test(v)) pool += 32;
+    return pool ? v.length * Math.log2(pool) : 0;
+  }
+  function addonStatus(v) {
+    if (!v) return { t: 'Required. Enter 3 to 8 characters, or press Random.', bad: true };
+    if (!C.validAddon(v)) return { t: 'Use 3 to 8 characters: letters, digits or symbols, no spaces.', bad: true };
+    return { t: v.length + ' characters', bad: false };
+  }
+  function updateStrength() {
+    const used = addonVals.slice(0, addonCount).filter(C.validAddon);
+    const base = wordCount === 24 ? 256 : 128;
+    let t = 'The ' + wordCount + ' words alone carry ' + base + ' bits of randomness.';
+    if (addonCount) {
+      const total = used.reduce((s, v) => s + bitsOf(v), 0);
+      t += ' Your add-ons add about ' + Math.round(total) + ' bits if their characters are random. Phrases you choose yourself are usually much weaker, so prefer Random.';
+    }
+    $('#strength').textContent = t;
+  }
+  function renderAddonRows() {
+    const box = $('#addonRows'); box.textContent = '';
+    for (let i = 0; i < addonCount; i++) {
+      if (!addonVals[i]) addonVals[i] = C.randomAddon(8);
+      const id = 'ad' + i;
+      const input = h('input', { type: 'text', id, maxlength: '8', spellcheck: 'false', autocomplete: 'off', autocapitalize: 'none' });
+      input.value = addonVals[i];
+      const status = h('div', { class: 'status' });
+      const refresh = () => { const s = addonStatus(addonVals[i]); status.textContent = s.t; status.className = 'status' + (s.bad ? ' bad' : ''); updateStrength(); };
+      input.addEventListener('input', () => { addonVals[i] = input.value; refresh(); });
+      const rnd = h('button', { type: 'button', class: 'btn ghost small', text: 'Random' });
+      rnd.addEventListener('click', () => { addonVals[i] = C.randomAddon(8); input.value = addonVals[i]; refresh(); });
+      box.append(h('div', { class: 'addon' }, h('label', { for: id, text: 'Add-on ' + (i + 1) }), input, rnd, status));
+      refresh();
+    }
+    updateStrength();
+  }
+  seg($('#segWords'), [12, 24], wordCount, (v) => { wordCount = v; updateStrength(); });
+  seg($('#segAddons'), [0, 1, 2, 3], addonCount, (v) => { addonCount = v; renderAddonRows(); });
+  updateStrength();
+
+  /* ---------- create: generate ---------- */
+  $('#genBtn').addEventListener('click', async () => {
+    const msg = $('#createMsg'); say(msg, '');
+    const addons = addonVals.slice(0, addonCount);
+    const badIdx = addons.findIndex((a) => !C.validAddon(a));
+    if (badIdx >= 0) { say(msg, 'Add-on ' + (badIdx + 1) + ' needs 3 to 8 characters (letters, digits or symbols, no spaces).', 'bad'); return; }
+    const btn = $('#genBtn'); btn.disabled = true;
+    try {
+      const mnemonic = await C.generateMnemonic(wordCount);
+      const wallet = await C.deriveWallet(mnemonic, addons, 0);
+      created = { mnemonic, addons, wallet };
+      renderSheet();
+    } catch (e) { say(msg, 'Could not create the wallet: ' + e.message, 'bad'); }
+    btn.disabled = false;
+  });
+
+  function renderSheet() {
+    const out = $('#sheetOut'); out.textContent = '';
+    const { mnemonic, addons, wallet } = created;
+    const list = h('ol', { class: 'words', 'aria-label': 'Recovery words in order' });
+    mnemonic.split(' ').forEach((w, i) => list.append(h('li', {}, h('span', { class: 'n', text: String(i + 1) }), h('span', { class: 'w', text: w }))));
+    const sheet = h('div', { class: 'sheet' }, list, h('hr', { class: 'perf' }));
+    if (addons.length) {
+      sheet.append(h('div', { class: 'small muted', text: 'Add-on phrases. Type them in this order when you open the wallet.' }));
+      const combos = h('div', { class: 'combos' });
+      addons.forEach((a, i) => combos.append(h('div', { class: 'combo' }, h('span', { class: 't', text: 'Add-on ' + (i + 1) }), h('span', { class: 'v', text: a }))));
+      sheet.append(combos);
+    } else {
+      sheet.append(h('div', { class: 'small muted', text: 'No add-ons. The words alone open this wallet.' }));
+    }
+    const chk = h('input', { type: 'checkbox', id: 'saved' });
+    const openBtn = h('button', { class: 'btn', type: 'button', disabled: 'disabled', text: 'Open this wallet' });
+    chk.addEventListener('change', () => { openBtn.disabled = !chk.checked; if (chk.checked) openBtn.removeAttribute('disabled'); else openBtn.setAttribute('disabled', 'disabled'); });
+    openBtn.addEventListener('click', () => {
+      $('#openWords').value = created.mnemonic;
+      ['open1', 'open2', 'open3'].forEach((id, i) => { $('#' + id).value = created.addons[i] || ''; });
+      $('#acctIdx').value = '0';
+      showTab('open');
+      $('#openBtn').click();
+      window.scrollTo({ top: 0 });
+    });
+    out.append(
+      h('h2', { text: 'Your recovery sheet' }),
+      h('p', { class: 'muted', text: 'Write the words and add-ons on paper, in this order. Anyone who has the words and every add-on controls the wallet. This page does not save them.' }),
+      sheet,
+      h('div', { class: 'rows' }, row('Public address', wallet.address, { hint: 'Safe to share. People send funds here.' }),
+        row('Check value', wallet.fingerprint, { hint: 'After you restore this wallet, the address must start and end the same way. If it does not, a word or add-on is wrong.', noCopy: true })),
+      h('label', { class: 'check', for: 'saved' }, chk, h('span', { text: 'I wrote down the words and add-ons in order.' })),
+      openBtn
+    );
+    out.scrollIntoView({ block: 'nearest' });
+  }
+
+  /* ---------- shared row builder ---------- */
+  const MASK = '•'.repeat(24);
+  function row(label, value, opts) {
+    opts = opts || {};
+    const val = h('code', { class: 'val', text: opts.secret ? MASK : value });
+    const acts = h('div', { class: 'acts' });
+    if (opts.secret) {
+      let shown = false;
+      const sh = h('button', { class: 'link', type: 'button', 'aria-pressed': 'false', text: 'Show' });
+      sh.addEventListener('click', () => { shown = !shown; val.textContent = shown ? value : MASK; sh.textContent = shown ? 'Hide' : 'Show'; sh.setAttribute('aria-pressed', String(shown)); });
+      acts.append(sh);
+    }
+    if (!opts.noCopy) {
+      const cp = h('button', { class: 'link', type: 'button', text: 'Copy' });
+      cp.addEventListener('click', () => copyText(value, cp));
+      acts.append(cp);
+    }
+    return h('div', { class: 'row' + (opts.secret ? ' secretrow' : '') }, h('div', { class: 'rl', text: label }), val, acts, opts.hint ? h('div', { class: 'hint', text: opts.hint }) : null);
+  }
+
+  /* ---------- open wallet ---------- */
+  let current = null, idleTimer = null;
+  const IDLE_MS = 180000;
+  function armIdle() { clearTimeout(idleTimer); if (current) idleTimer = setTimeout(lock, IDLE_MS); }
+  ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, armIdle, true));
+
+  function lock(silent) {
+    current = null; clearTimeout(idleTimer);
+    $('#acctOut').textContent = '';
+    $('#openWords').value = '';
+    ['open1', 'open2', 'open3'].forEach((id) => { $('#' + id).value = ''; });
+    $('#acctIdx').value = '0';
+    say($('#openMsg'), silent === true ? '' : 'Wallet locked. Words, add-ons and keys were cleared from this page.', 'good');
+  }
+
+  $('#openBtn').addEventListener('click', async () => {
+    const msg = $('#openMsg'); say(msg, ''); $('#acctOut').textContent = '';
+    const addons = ['open1', 'open2', 'open3'].map((id) => $('#' + id).value);
+    const bad = addons.findIndex((a) => a && !C.validAddon(a));
+    if (bad >= 0) { say(msg, 'Add-on ' + (bad + 1) + ' must be 3 to 8 characters, with no spaces.', 'bad'); return; }
+    const acct = Number($('#acctIdx').value);
+    if (!Number.isInteger(acct) || acct < 0 || acct > 19) { say(msg, 'Account number must be a whole number from 0 to 19.', 'bad'); return; }
+    const words = $('#openWords').value;
+    const btn = $('#openBtn'); btn.disabled = true;
+    try {
+      const check = await C.checkMnemonic(words);
+      if (!check.ok) { say(msg, check.error + ' Check each word and its position.', 'bad'); btn.disabled = false; return; }
+      const w = await C.deriveWallet(words, addons, acct);
+      current = w; armIdle();
+      renderAccount(w, addons.filter(Boolean).length);
+    } catch (e) { say(msg, 'Could not open the wallet: ' + e.message, 'bad'); }
+    btn.disabled = false;
+  });
+
+  function renderAccount(w, addonsUsed) {
+    const out = $('#acctOut'); out.textContent = '';
+    const lockBtn = h('button', { class: 'btn ghost', type: 'button', text: 'Lock wallet' });
+    lockBtn.addEventListener('click', () => lock());
+    const adv = h('details', {}, h('summary', { text: 'More technical values' }),
+      h('div', { class: 'rows' },
+        row('Compressed public key', w.publicKeyCompressed, { hint: 'The short form of the same public key.' }),
+        row('Seed (512-bit)', '0x' + w.seedHex, { secret: true, hint: 'Everything on this page is derived from this value. Never share it.' })));
+    out.append(
+      h('h2', { text: 'Account ' + $('#acctIdx').value }),
+      h('p', { class: 'muted small', text: addonsUsed ? addonsUsed + ' add-on' + (addonsUsed > 1 ? 's' : '') + ' used (' + w.passphraseLength + ' characters joined).' : 'No add-ons used.' }),
+      h('div', { class: 'rows' },
+        row('Public address', w.address, { hint: 'Safe to share. People send funds here.' }),
+        row('Check value', w.fingerprint, { hint: 'Compare with the check value from when you created the wallet. A different value means a word or add-on is wrong, and this is another, empty wallet.', noCopy: true }),
+        row('Public key', w.publicKey, { hint: 'Safe to share.' }),
+        row('Private key', w.privateKey, { secret: true, hint: 'Never share. Anyone with it can spend the funds.' }),
+        row('Derivation path', w.path, { noCopy: true })),
+      adv,
+      h('p', { class: 'muted small', text: 'The wallet locks itself after 3 minutes without activity.' }),
+      lockBtn
+    );
+    out.scrollIntoView({ block: 'nearest' });
+  }
+
+  /* ---------- self-test ---------- */
+  $('#testBtn').addEventListener('click', async () => {
+    const list = $('#testOut'); list.textContent = '';
+    const btn = $('#testBtn'); btn.disabled = true;
+    try {
+      const res = await C.selfTest();
+      res.forEach((r) => list.append(h('li', {}, h('span', { class: r.ok ? 'ok' : 'no', text: r.ok ? 'Pass ' : 'Fail ' }), document.createTextNode(r.name))));
+      list.append(h('li', { class: 'small' }, h('strong', { text: res.every((r) => r.ok) ? 'All ' + res.length + ' checks passed.' : 'Some checks failed. Do not trust this page.' })));
+    } catch (e) { list.append(h('li', { class: 'no', text: 'Self-test could not run: ' + e.message })); }
+    btn.disabled = false;
+  });
+})();
+</script>
+</body>
+</html>
