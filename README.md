@@ -1,5 +1,7 @@
 # 2FA SeedPlus Wallet
-The project turns 12 or 24 standard recovery words plus up to three add-on phrases into one Ethereum wallet, and a working browser demo of that already exists.
+The project turns 12 or 24 standard recovery words plus up to three add-on phrases into one Ethereum wallet, and [a working browser demo](https://hedows.github.io/2FA-SeedPlus-wallet/wallet-demo.html) of that already exists.
+
+https://hedows.github.io/2FA-SeedPlus-wallet/wallet-demo.html
 
 ## Built and tested
 
@@ -21,10 +23,10 @@ The add-ons only change the passphrase that enters the seed step. From the seed 
 
 ## Install and run
 
-The demo needs no install: unzip the folder and open wallet-demo.html in Chrome, Edge, Firefox or Safari. It works offline and makes no network requests.
+The demo needs no install: unzip the folder and open [wallet-demo.html](https://hedows.github.io/2FA-SeedPlus-wallet/wallet-demo.html) in Chrome, Edge, Firefox or Safari. It works offline and makes no network requests.
 ### Use the demo
 
-1.	Open wallet-demo.html.
+1.	Open [wallet-demo.html](https://hedows.github.io/2FA-SeedPlus-wallet/wallet-demo.html).
 2.	On Create wallet, pick 12 or 24 words and 0 to 3 add-ons. Random add-ons are filled in for you, and you can edit them.
 3.	Press Create wallet. Write the words and add-ons on paper, in order, and note the check value.
 4.	Tick the backup box and press Open this wallet, or switch to Open wallet and type everything back in.
