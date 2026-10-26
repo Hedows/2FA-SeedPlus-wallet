@@ -16,7 +16,7 @@ The project turns 12 or 24 standard recovery words plus up to three add-on phras
 •	An external security audit before any real funds are held.
 
 ## Architecture and data flow
-Image
+<img src="https://github.com/Hedows/2FA-SeedPlus-wallet/blob/main/2FA-SeedPlus-wallet.png" alt="2FA SeedPlus Architecture and data flow" width="800">
 The add-ons only change the passphrase that enters the seed step. From the seed onward the steps are standard BIP-32 and BIP-44, so the published test vectors apply there. Vault mode swaps the seed step for the Argon2id chain and leaves everything below it unchanged.
 
 ## Install and run
